@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    html, body { margin: 0; width: 340px; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: linear-gradient(160deg, #10141c 0%, #16202f 100%);
+      color: #dfe6f1;
+      padding: 14px 16px;
+      box-sizing: border-box;
+    }
+    .head { display: flex; align-items: center; gap: 10px; }
+    .head img { width: 40px; height: 40px; }
+    .head .name { font-size: 14px; font-weight: 600; }
+    .head .ver { font-size: 11px; color: #8b96a8; }
+    .card {
+      margin-top: 12px; padding: 10px 12px; border-radius: 10px;
+      background: rgba(255,255,255,.06); font-size: 13px; line-height: 1.7;
+    }
+    .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .row .k { color: #8b96a8; }
+    .row .v { font-weight: 600; }
+    .row .v.big { font-size: 15px; }
+    .row .v.err { color: #e08a8a; font-size: 12px; font-weight: 400; }
+    .row .v.disabled { color: #5a6577; opacity: .55; }
+    .btn {
+      margin-top: 10px; width: 100%; padding: 8px 0; border: none; border-radius: 8px;
+      background: rgba(255,255,255,.08); color: #dfe6f1; font-size: 13px; cursor: pointer;
+    }
+    .btn:hover { background: rgba(255,255,255,.14); }
+    .btn.danger { background: rgba(224,138,138,.15); color: #e08a8a; }
+    .btn-group { display: flex; gap: 8px; }
+    .btn-group .btn { flex: 1; }
+    .foot { margin-top: 12px; display: flex; gap: 12px; justify-content: space-between; }
+    .link { background: none; border: none; color: #7da2f5; font-size: 12px; cursor: pointer; padding: 0; }
+    .link:hover { text-decoration: underline; }
+    .hint { margin-top: 10px; font-size: 11px; color: #6d7890; line-height: 1.5; }
+    @media (prefers-color-scheme: light) {
+      body { background: linear-gradient(160deg, #f4f6fa 0%, #e8edf5 100%); color: #223047; }
+      .head .ver { color: #6b7484; }
+      .card { background: rgba(0,0,0,.045); }
+      .row .k { color: #6b7484; }
+      .row .v.err { color: #c05555; }
+      .btn { background: rgba(20,30,60,.06); color: #223047; }
+      .btn:hover { background: rgba(20,30,60,.11); }
+      .btn.danger { background: rgba(192,85,85,.12); color: #b04a4a; }
+      .link { color: #2a5bd7; }
+      .hint { color: #8b93a3; }
+    }
+  </style>
+</head>
+<body>
+  <div class="head">
+    <img src="../../assets/icons/icon48.png" alt="whale" />
+    <div>
+      <div class="name">DSH 小鲸鱼余额挂件</div>
+      <div class="ver" id="ver"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row"><span class="k">余额</span><span class="v big" id="balance">…</span></div>
+    <div class="row"><span class="k">今日已用</span><span class="v" id="usage">…</span></div>
+    <div class="row"><span class="k">数据源</span><span class="v" id="source">…</span></div>
+    <div class="row"><span class="k">状态</span><span class="v" id="status">…</span></div>
+  </div>
+
+  <div id="siteArea">
+    <div class="btn-group">
+      <button class="btn danger" id="btnHideSite">隐藏本站</button>
+      <button class="btn" id="btnPause">全局暂停</button>
+    </div>
+  </div>
+
+  <div class="foot">
+    <button class="link" id="btnRefresh">刷新数据</button>
+    <button class="link" id="btnOptions">设置</button>
+  </div>
+  <div class="hint" id="siteHint"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

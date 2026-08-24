@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>DSH 小鲸鱼 · 设置</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #10141c; color: #dfe6f1; max-width: 620px; margin: 40px auto; padding: 0 20px; }
+    h1 { font-size: 18px; }
+    h2 { font-size: 14px; margin-top: 28px; color: #aeb9cb; }
+    .field { margin: 10px 0; }
+    label { display: block; font-size: 12px; color: #8b96a8; margin-bottom: 4px; }
+    input[type=text], input[type=password] {
+      width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 8px;
+      border: 1px solid #2a3140; background: #1a2029; color: #dfe6f1; font-size: 13px;
+    }
+    .btn {
+      margin-top: 10px; padding: 8px 18px; border: none; border-radius: 8px;
+      background: #2a5bd7; color: #fff; font-size: 13px; cursor: pointer;
+    }
+    .btn:hover { background: #3568e8; }
+    .btn.ghost { background: rgba(255,255,255,.08); color: #dfe6f1; }
+    .btn.danger { background: rgba(224,138,138,.15); color: #e08a8a; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .msg { margin-top: 10px; font-size: 13px; }
+    .msg.ok { color: #7fd8a4; }
+    .msg.err { color: #e08a8a; }
+    .check { margin: 8px 0; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+    .check input { width: 15px; height: 15px; accent-color: #2a5bd7; }
+    .site-list { margin: 8px 0; }
+    .site-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; border-radius: 6px; background: #1a2029; margin: 4px 0; font-size: 12px; }
+    .site-row button { background: none; border: none; color: #e08a8a; cursor: pointer; font-size: 12px; }
+    .inline { display: flex; gap: 8px; }
+    .inline input { flex: 1; }
+    .hint { font-size: 11px; color: #6d7890; margin-top: 6px; line-height: 1.6; }
+    @media (prefers-color-scheme: light) {
+      body { background: #f6f8fb; color: #1c2330; }
+      h1, h2 { color: #1c2330; }
+      h2 { color: #5a6474; }
+      label { color: #6b7484; }
+      input[type=text], input[type=password] {
+        background: #fff; border-color: #c9d1dd; color: #1c2330;
+      }
+      .btn.ghost { background: rgba(20,30,60,.07); color: #1c2330; }
+      .btn.ghost:hover { background: rgba(20,30,60,.12); }
+      .btn.danger { background: rgba(192,85,85,.12); color: #b04a4a; }
+      .site-row { background: #fff; border: 1px solid #e3e8f0; }
+      .site-row button { color: #b04a4a; }
+      .hint { color: #8b93a3; }
+    }
+  </style>
+</head>
+<body>
+  <h1>DSH 小鲸鱼余额挂件 · 设置</h1>
+
+  <h2>凭据</h2>
+  <div class="field">
+    <label for="apiKey">DEEPSEEK_API_KEY（必需，拉取余额）</label>
+    <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off" />
+  </div>
+  <div class="field">
+    <label for="platformToken">DEEPSEEK_PLATFORM_TOKEN（可选，实时·令牌数据源）</label>
+    <input type="password" id="platformToken" placeholder="Bearer eyJ..." autocomplete="off" />
+  </div>
+  <button class="btn" id="btnSave">保存并校验</button>
+  <div class="msg" id="saveMsg"></div>
+  <div class="hint">令牌等同账号会话凭证，仅存本机（chrome.storage.local），不会上传。</div>
+
+  <h2>显示范围</h2>
+  <div class="check">
+    <input type="checkbox" id="paused" />
+    <label for="paused" style="margin:0">全局暂停（所有页面不显示小鲸鱼）</label>
+  </div>
+
+  <h2>隐藏站点</h2>
+  <div class="hint">以下站点不显示小鲸鱼。默认包含 DSH Web 界面（127.0.0.1:3080），可取消。</div>
+  <div class="site-list" id="siteList"></div>
+  <div class="inline">
+    <input type="text" id="siteInput" placeholder="https://example.com" />
+    <button class="btn ghost" id="btnAddSite">添加</button>
+    <button class="btn danger" id="btnClearSites">清空</button>
+  </div>
+
+  <h2>其他</h2>
+  <button class="btn ghost" id="btnReset">恢复默认设置（不含凭据）</button>
+
+  <script src="options.js"></script>
+</body>
+</html>

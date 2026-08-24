@@ -1,0 +1,7 @@
+.edge-dev-profile/
+dist/
+*.der
+*.log
+scripts/dev-extension-key.pem
+/PLAN.md
+/CHANGELOG.md

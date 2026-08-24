@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "DSH 小鲸鱼余额挂件",
+  "short_name": "DSH 鲸鱼",
+  "version": "0.1.0",
+  "description": "浏览器右下角的 DeepSeek 余额小鲸鱼挂件：余额、今日已用、峰谷定价与本地 OpenCode 用量。",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAr99ZfPuraeEB2cElNtu4CNuD87jDSuIUCZlGL/H+KSzVJGDyajsJFes7zFpxCef3iZiAXyOBax0znM0s8vdBzCoOC2ZiCvsBJhc7uKGdXgMv5J5EwkDnx8EigC3p9kcBhEJ/OUewzLeITFXBzbuuMRpzOe4SO4iJePVsyeO/OHucITfH+9jNAU4o7wSdsHAY7PJJ0sKqz8I2YKh3BbGl7EKvCmOtu44X7VnFti279qiajm9Tb1Fh2gyJVhxD+m1Vzk1M+gpxXygp8lWNLy2MwDsbg28jcVFskeawIqRg3FA/2yhMoqzaQcTFfc2rtWBqLRoqGOVjY7OyodKBaMiQuQIDAQAB",
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "32": "assets/icons/icon32.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  },
+  "permissions": ["storage", "nativeMessaging"],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "src/background/sw.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["src/content/whale.js"],
+      "css": ["src/content/whale.css"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "options_ui": {
+    "page": "src/options/options.html",
+    "open_in_tab": true
+  },
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "DSH 小鲸鱼余额挂件",
+    "default_icon": {
+      "16": "assets/icons/icon16.png",
+      "32": "assets/icons/icon32.png",
+      "48": "assets/icons/icon48.png"
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
