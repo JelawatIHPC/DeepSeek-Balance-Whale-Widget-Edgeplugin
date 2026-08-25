@@ -10,6 +10,10 @@
   var MIN_SCALE = consts.MIN_SCALE
   var MAX_SCALE = consts.MAX_SCALE
 
+  function mapMode(v) {
+    return v === 'opencode' || v === 'codex' ? v : 'deepseek'
+  }
+
   var root = document.createElement('div')
   root.className = 'dshwv-root'
 
@@ -294,9 +298,9 @@
   }
 
   function setUsageMode(v) {
-    usageMode = v === 'opencode' ? 'opencode' : 'deepseek'
+    usageMode = mapMode(v)
     usageSelect.value = usageMode
-    ledgerSelect.disabled = usageMode === 'opencode'
+    ledgerSelect.disabled = usageMode !== 'deepseek'
     var p = saveConfig()
     if (p && typeof p.then === 'function') p.then(function () { dataRefresh() })
     else dataRefresh()
@@ -430,9 +434,9 @@
     var c = changes.config.newValue || {}
     applyVisibility(c)
     if (typeof c.usageMode === 'string') {
-      usageMode = c.usageMode === 'opencode' ? 'opencode' : 'deepseek'
+      usageMode = mapMode(c.usageMode)
       usageSelect.value = usageMode
-      ledgerSelect.disabled = usageMode === 'opencode'
+      ledgerSelect.disabled = usageMode !== 'deepseek'
     }
     if (typeof c.ledgerMode === 'string') {
       ledgerMode = c.ledgerMode === 'dsToken' ? 'dsToken' : 'ledger'
@@ -482,9 +486,9 @@
         }
         if (typeof d.skin === 'string') applySkin(d.skin)
         if (typeof d.usageMode === 'string') {
-          usageMode = d.usageMode === 'opencode' ? 'opencode' : 'deepseek'
+          usageMode = mapMode(d.usageMode)
           usageSelect.value = usageMode
-          ledgerSelect.disabled = usageMode === 'opencode'
+          ledgerSelect.disabled = usageMode !== 'deepseek'
         }
         if (typeof d.ledgerMode === 'string') {
           ledgerMode = d.ledgerMode === 'dsToken' ? 'dsToken' : 'ledger'

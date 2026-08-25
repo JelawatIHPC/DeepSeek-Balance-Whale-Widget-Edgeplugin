@@ -164,6 +164,272 @@ function Write-Frame($stream, $obj) {
     $stream.Flush()
 }
 
+# ---- Codex data source (WindexBar-compatible) ----
+$script:rpcProcess = $null
+$script:rpcId = 0
+
+function Get-CodexExecutable {
+    $cmd = Get-Command codex -ErrorAction SilentlyContinue
+    if ($null -eq $cmd -or [string]::IsNullOrWhiteSpace($cmd.Source)) { return $null }
+    return $cmd.Source
+}
+
+function Get-CodexHome {
+    if (-not [string]::IsNullOrWhiteSpace($env:CODEX_HOME)) { return $env:CODEX_HOME }
+    return Join-Path $HOME '.codex'
+}
+
+function Start-CodexRpcProcess($exe) {
+    $psi = [System.Diagnostics.ProcessStartInfo]::new()
+    $psi.FileName = $exe
+    $psi.Arguments = '-s read-only -a never app-server'
+    $psi.RedirectStandardInput = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $script:rpcProcess = [System.Diagnostics.Process]::Start($psi)
+    $script:rpcId = 0
+    return $null -ne $script:rpcProcess
+}
+
+function Stop-CodexRpcProcess {
+    if ($null -ne $script:rpcProcess) {
+        if (-not $script:rpcProcess.HasExited) { $script:rpcProcess.Kill() }
+        $script:rpcProcess.Dispose()
+        $script:rpcProcess = $null
+    }
+}
+
+function Send-CodexRpc($method, $params) {
+    $script:rpcId++
+    $msg = @{ id = $script:rpcId; method = $method; params = $params }
+    $json = $msg | ConvertTo-Json -Compress -Depth 20
+    $script:rpcProcess.StandardInput.WriteLine($json)
+    $script:rpcProcess.StandardInput.Flush()
+    return $script:rpcId
+}
+
+function Send-CodexNotification($method, $params) {
+    $msg = @{ method = $method; params = $params }
+    $json = $msg | ConvertTo-Json -Compress -Depth 10
+    $script:rpcProcess.StandardInput.WriteLine($json)
+    $script:rpcProcess.StandardInput.Flush()
+}
+
+function Read-CodexRpc($targetId, $timeoutMs) {
+    $deadline = [DateTimeOffset]::Now.AddMilliseconds($timeoutMs)
+    while ([DateTimeOffset]::Now -lt $deadline) {
+        $remaining = [int][Math]::Max(1, ($deadline - [DateTimeOffset]::Now).TotalMilliseconds)
+        $task = $script:rpcProcess.StandardOutput.ReadLineAsync()
+        if (-not $task.Wait($remaining)) { return $null }
+        $line = $task.Result
+        if ($null -eq $line) { return $null }
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        try { $msg = $line | ConvertFrom-Json } catch { continue }
+        if ($null -eq $msg.id -or [int]$msg.id -ne $targetId) { continue }
+        if ($null -ne $msg.error) { return $null }
+        return $msg.result
+    }
+    return $null
+}
+
+function Invoke-CodexRpcSnapshot($exe) {
+    if (-not (Start-CodexRpcProcess $exe)) { return $null }
+    try {
+        $id = Send-CodexRpc 'initialize' @{ clientInfo = @{ name = 'dsh-whale'; version = '0.1.0' } }
+        if ($null -eq (Read-CodexRpc $id 10000)) { return $null }
+        Send-CodexNotification 'initialized' @{}
+        $idLimits = Send-CodexRpc 'account/rateLimits/read' @{}
+        $limits = Read-CodexRpc $idLimits 10000
+        if ($null -eq $limits) { return $null }
+        $plan = $null
+        $idAcct = Send-CodexRpc 'account/read' @{}
+        $acct = Read-CodexRpc $idAcct 5000
+        if ($null -ne $acct -and $null -ne $acct.account) {
+            $pt = $acct.account.planType
+            if ($pt) { $plan = @{ planType = [string]$pt } }
+        }
+        return @{ limits = $limits; plan = $plan }
+    } finally {
+        Stop-CodexRpcProcess
+    }
+}
+
+function Read-CodexTomlConfig {
+    $configPath = Join-Path (Get-CodexHome) 'config.toml'
+    $model = $null
+    if (-not (Test-Path -LiteralPath $configPath)) { return $model }
+    try {
+        foreach ($rawLine in [System.IO.File]::ReadLines($configPath)) {
+            $line = $rawLine.Trim()
+            if ($line.Length -eq 0) { continue }
+            $hash = $line.IndexOf('#')
+            if ($hash -ge 0) { $line = $line.Substring(0, $hash).Trim() }
+            if ($line.Length -eq 0) { continue }
+            $eq = $line.IndexOf('=')
+            if ($eq -le 0) { continue }
+            $key = $line.Substring(0, $eq).Trim()
+            if ($key -ne 'model') { continue }
+            $val = $line.Substring($eq + 1).Trim()
+            if ($val.Length -ge 2 -and $val[0] -eq '"' -and $val[$val.Length - 1] -eq '"') {
+                $val = $val.Substring(1, $val.Length - 2)
+            }
+            if (-not [string]::IsNullOrWhiteSpace($val)) { $model = $val }
+        }
+    } catch {}
+    return $model
+}
+
+function ConvertTo-CodexWindow($windowObj) {
+    if ($null -eq $windowObj) { return $null }
+    $used = $null
+    if ($null -ne $windowObj.used_percent) { $used = [double]$windowObj.used_percent }
+    elseif ($null -ne $windowObj.usedPercent) { $used = [double]$windowObj.usedPercent }
+    if ($null -eq $used) { return $null }
+    $minutes = $null
+    if ($null -ne $windowObj.window_minutes) { $minutes = [int]$windowObj.window_minutes }
+    elseif ($null -ne $windowObj.windowDurationMins) { $minutes = [int]$windowObj.windowDurationMins }
+    elseif ($null -ne $windowObj.windowDurationMinutes) { $minutes = [int]$windowObj.windowDurationMinutes }
+    $resetsAt = $null
+    if ($null -ne $windowObj.resets_at) { $resetsAt = [int64]$windowObj.resets_at }
+    elseif ($null -ne $windowObj.resetsAt) { $resetsAt = [int64]$windowObj.resetsAt }
+    return @{ usedPercent = $used; resetsAt = $resetsAt; windowMinutes = $minutes }
+}
+
+function Is-CodexWeeklyWindow($minutes) {
+    return $null -ne $minutes -and $minutes -ge 10080 -and $minutes -lt 11520
+}
+
+function Set-CodexWindows([hashtable]$store, $primary, $secondary) {
+    # 按 WindexBar 语义：secondary 默认周窗口；周窗口(7d-8d)归 secondary，其余归 primary
+    if ($null -ne $primary) {
+        if (Is-CodexWeeklyWindow $primary.windowMinutes) { $store.secondary = $primary }
+        else { $store.primary = $primary }
+    }
+    if ($null -ne $secondary) {
+        if (Is-CodexWeeklyWindow $secondary.windowMinutes) { $store.secondary = $secondary }
+        elseif ($null -eq $store.secondary) { $store.secondary = $secondary }
+        else { $store.primary = $secondary }
+    }
+}
+
+function Read-CodexSessionState {
+    # 返回 @{ activeModel; tokens; limits }
+    $result = @{ activeModel = $null; tokens = $null; limits = @{} }
+    $sessionsDir = Join-Path (Get-CodexHome) 'sessions'
+    if (-not (Test-Path -LiteralPath $sessionsDir)) { return $result }
+    $files = @(Get-ChildItem -LiteralPath $sessionsDir -Recurse -Filter 'rollout-*.jsonl' -ErrorAction SilentlyContinue |
+        Where-Object { -not $_.PSIsContainer } |
+        Sort-Object LastWriteTimeUtc -Descending |
+        Select-Object -First 40)
+    $bestTimestamp = $null
+    foreach ($file in $files) {
+        try {
+            foreach ($line in [System.IO.File]::ReadLines($file.FullName)) {
+                if (-not $line.Contains('"type"')) { continue }
+                if ($line -notmatch 'turn_context|session_meta|thread_settings|threadSettings|rate_limits|rateLimits|token_count|token_usage|tokenUsage') { continue }
+                try { $obj = $line | ConvertFrom-Json } catch { continue }
+                $type = [string]$obj.type
+                if ($type -eq 'session_meta') {
+                    if ($null -ne $obj.payload -and $obj.payload.thread_source -eq 'subagent') { break }
+                    continue
+                }
+                if ($null -eq $obj.payload) { continue }
+                $timestamp = $null
+                if ($null -ne $obj.timestamp) { try { $timestamp = [DateTimeOffset]$obj.timestamp } catch {} }
+                $isNewer = $null -eq $bestTimestamp -or ($null -ne $timestamp -and $timestamp -gt $bestTimestamp)
+                if ($type -eq 'turn_context' -or $type -eq 'thread_settings') {
+                    if ($null -eq $result.activeModel -or $isNewer) {
+                        $model = $null
+                        foreach ($key in @('model', 'modelName', 'model_name', 'selectedModel', 'selected_model')) {
+                            if ($null -ne $obj.payload.$key) { $model = [string]$obj.payload.$key; break }
+                        }
+                        if (-not [string]::IsNullOrWhiteSpace($model)) {
+                            $result.activeModel = $model
+                            $bestTimestamp = $timestamp
+                        }
+                    }
+                    continue
+                }
+                if ($obj.payload.PSObject.Properties.Name -contains 'rate_limits' -or $obj.payload.PSObject.Properties.Name -contains 'rateLimits') {
+                    $limits = $obj.payload.rate_limits
+                    if ($null -eq $limits) { $limits = $obj.payload.rateLimits }
+                    $primary = ConvertTo-CodexWindow $limits.primary
+                    $secondary = ConvertTo-CodexWindow $limits.secondary
+                    if ($null -ne $primary -or $null -ne $secondary) {
+                        Set-CodexWindows $result.limits $primary $secondary
+                    }
+                    continue
+                }
+                if ($obj.payload.PSObject.Properties.Name -contains 'info') {
+                    $info = $obj.payload.info
+                    $tok = $info.total_token_usage
+                    if ($null -eq $tok) { $tok = $info.totalTokenUsage }
+                    if ($null -ne $tok) {
+                        $total = if ($null -ne $tok.total_tokens) { [int64]$tok.total_tokens } elseif ($null -ne $tok.totalTokens) { [int64]$tok.totalTokens } else { 0 }
+                        $inputT = if ($null -ne $tok.input_tokens) { [int64]$tok.input_tokens } elseif ($null -ne $tok.inputTokens) { [int64]$tok.inputTokens } else { 0 }
+                        $cachedT = if ($null -ne $tok.cached_input_tokens) { [int64]$tok.cached_input_tokens } elseif ($null -ne $tok.cachedInputTokens) { [int64]$tok.cachedInputTokens } else { 0 }
+                        $outputT = if ($null -ne $tok.output_tokens) { [int64]$tok.output_tokens } elseif ($null -ne $tok.outputTokens) { [int64]$tok.outputTokens } else { 0 }
+                        if ($total -gt 0 -or $inputT -gt 0 -or $outputT -gt 0) {
+                            if ($result.tokens -eq $null -or $isNewer) {
+                                $result.tokens = @{ input = $inputT; cached = $cachedT; output = $outputT; total = $total }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch {}
+    }
+    if ($null -eq $result.activeModel) {
+        $result.activeModel = Read-CodexTomlConfig
+    }
+    return $result
+}
+
+function Get-CodexSnapshot {
+    $exe = Get-CodexExecutable
+    $state = Read-CodexSessionState
+    $payload = @{
+        cliFound = $null -ne $exe
+        source = 'none'
+        plan = $null
+        limits = $null
+        credits = $null
+        tokens = $state.tokens
+        activeModel = $state.activeModel
+    }
+    $rpc = $null
+    if ($null -ne $exe) {
+        try { $rpc = Invoke-CodexRpcSnapshot $exe } catch { $rpc = $null }
+    }
+    if ($null -ne $rpc -and $null -ne $rpc.limits) {
+        $payload.source = 'rpc'
+        $rateLimits = $rpc.limits.rateLimits
+        if ($null -eq $rateLimits) { $rateLimits = $rpc.limits }
+        $primary = ConvertTo-CodexWindow $rateLimits.primary
+        $secondary = ConvertTo-CodexWindow $rateLimits.secondary
+        $limitsHash = @{}
+        Set-CodexWindows $limitsHash $primary $secondary
+        # RPC 缺失的窗口用会话文件兜底
+        if ($null -eq $limitsHash.primary) { $limitsHash.primary = $state.limits.primary }
+        if ($null -eq $limitsHash.secondary) { $limitsHash.secondary = $state.limits.secondary }
+        if ($null -ne $limitsHash.primary -or $null -ne $limitsHash.secondary) {
+            $payload.limits = $limitsHash
+        }
+        if ($null -ne $rateLimits.credits -and $null -ne $rateLimits.credits.balance) {
+            $payload.credits = @{ balance = [string]$rateLimits.credits.balance }
+        }
+        if ($null -ne $rpc.plan) { $payload.plan = $rpc.plan }
+    } elseif ($null -ne $state.limits.primary -or $null -ne $state.limits.secondary) {
+        $payload.source = 'files'
+        $payload.limits = $state.limits
+    } elseif ($null -ne $state.tokens -or $null -ne $state.activeModel) {
+        $payload.source = 'files'
+    }
+    return $payload
+}
+
 $db = Join-Path $HOME '.local\share\opencode\opencode.db'
 $epoch = [datetime]'1970-01-01 00:00:00'
 $todayStart = [datetime]::Today
@@ -184,6 +450,9 @@ while ($true) {
             } else {
                 Write-Frame $stdout @{ dbFound = $false; error = 'opencode db not found' }
             }
+        } elseif ($req.cmd -eq 'codex') {
+            $result = Get-CodexSnapshot
+            Write-Frame $stdout $result
         } else {
             Write-Frame $stdout @{ error = 'unknown cmd' }
         }

@@ -13,7 +13,7 @@ export function fmtMoney(amount, currency) {
 export function buildPageSet(payload, cfg) {
   const pages = []
   const mode = payload.requestedMode
-  if (mode === 'opencode') {
+  if (mode === 'opencode' || mode === 'codex') {
     for (const p of payload.pages || []) pages.push(p)
   } else {
     if (payload.ok) {
@@ -44,4 +44,64 @@ export function buildBubblePageSet(payload, cfg, random) {
   const dialogue = rollDialogue(random)
   if (dialogue) ps.pages.push(dialogue)
   return ps
+}
+
+function fmtPct(n) {
+  const v = Number(n)
+  if (!isFinite(v)) return '--'
+  return (Math.round(v * 10) / 10).toString() + '%'
+}
+
+function fmtReset(resetsAt, windowMinutes) {
+  if (resetsAt == null) return ''
+  const d = new Date(Number(resetsAt) * 1000)
+  const now = new Date()
+  if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()) {
+    const hh = String(d.getHours()).padStart(2, '0')
+    const mm = String(d.getMinutes()).padStart(2, '0')
+    return hh + ':' + mm + ' 重置'
+  }
+  return (d.getMonth() + 1) + '月' + d.getDate() + '日 重置'
+}
+
+function fmtTokensCodex(n) {
+  const x = Number(n) || 0
+  if (x >= 1e9) return (x / 1e9).toFixed(2) + 'B'
+  if (x >= 1e6) return (x / 1e6).toFixed(1) + 'M'
+  if (x >= 1e3) return (x / 1e3).toFixed(1) + 'K'
+  return String(Math.round(x))
+}
+
+export function buildCodexPages(res) {
+  const pages = []
+  const limits = (res && res.limits) || {}
+  const primary = limits.primary
+  const secondary = limits.secondary
+  if (primary && primary.usedPercent != null) {
+    pages.push({
+      label: 'Codex 5h',
+      main: fmtPct(primary.usedPercent),
+      sub: fmtReset(primary.resetsAt, primary.windowMinutes),
+      kind: 'usage',
+    })
+  }
+  if (secondary && secondary.usedPercent != null) {
+    pages.push({
+      label: 'Codex 周',
+      main: fmtPct(secondary.usedPercent),
+      sub: fmtReset(secondary.resetsAt, secondary.windowMinutes),
+      kind: 'usage',
+    })
+  }
+  const credits = res && res.credits && res.credits.balance
+  const tokens = res && res.tokens && res.tokens.total
+  if (credits || tokens) {
+    pages.push({
+      label: 'Credits',
+      main: tokens ? fmtTokensCodex(tokens) : '$' + credits,
+      sub: credits && tokens ? 'credits $' + credits : undefined,
+      kind: 'usage',
+    })
+  }
+  return pages
 }

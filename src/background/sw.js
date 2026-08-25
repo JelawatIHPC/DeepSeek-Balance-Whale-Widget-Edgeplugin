@@ -2,7 +2,7 @@ import { MSG } from '../shared/protocol.js'
 import { isPeakTime, computeTodayUsage } from '../shared/pricing.js'
 import { PROVIDER_META } from '../shared/providers.js'
 import { todayKey, newLedger, applyLedgerObservation } from '../shared/ledger.js'
-import { buildPageSet, buildBubblePageSet } from '../shared/pages.js'
+import { buildPageSet, buildBubblePageSet, buildCodexPages } from '../shared/pages.js'
 
 const BALANCE_URL = 'https://api.deepseek.com/user/balance'
 const BALANCE_TTL_MS = 25000
@@ -32,7 +32,9 @@ const DEFAULT_CONFIG = {
 }
 
 function mapUsageMode(v) {
-  return v === 'opencode' ? 'opencode' : 'deepseek'
+  if (v === 'opencode') return 'opencode'
+  if (v === 'codex') return 'codex'
+  return 'deepseek'
 }
 
 function normalizeConfig(raw) {
@@ -199,9 +201,9 @@ function prettyModel(name) {
   return s.replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-let opencodeInFlight = null
+let nativeInFlight = null
 
-function connectOpencode() {
+function connectNativeQuery(cmd) {
   return new Promise((resolve, reject) => {
     let settled = false
     let port = null
@@ -215,7 +217,7 @@ function connectOpencode() {
       if (!settled) {
         settled = true
         try { port.disconnect() } catch (err) {}
-        reject(new Error('opencode host timeout'))
+        reject(new Error('native host timeout'))
       }
     }, 10000)
     port.onMessage.addListener((msg) => {
@@ -229,10 +231,10 @@ function connectOpencode() {
       clearTimeout(timer)
       if (settled) return
       settled = true
-      reject(new Error(chrome.runtime.lastError ? chrome.runtime.lastError.message : 'opencode host disconnected'))
+      reject(new Error(chrome.runtime.lastError ? chrome.runtime.lastError.message : 'native host disconnected'))
     })
     try {
-      port.postMessage({ cmd: 'usage' })
+      port.postMessage({ cmd })
     } catch (err) {
       clearTimeout(timer)
       if (!settled) {
@@ -243,17 +245,17 @@ function connectOpencode() {
   })
 }
 
-function queryOpencode() {
-  if (opencodeInFlight) return opencodeInFlight
-  opencodeInFlight = connectOpencode().finally(() => {
-    opencodeInFlight = null
+function queryNative(cmd) {
+  if (nativeInFlight) return nativeInFlight
+  nativeInFlight = connectNativeQuery(cmd).finally(() => {
+    nativeInFlight = null
   })
-  return opencodeInFlight
+  return nativeInFlight
 }
 
 async function runOpencode() {
   try {
-    const res = await queryOpencode()
+    const res = await queryNative('usage')
     if (!res || !res.dbFound) return { ok: false, error: 'Opencode 数据库不可用' }
     const today = res.today || {}
     const month = res.month || {}
@@ -277,6 +279,18 @@ async function runOpencode() {
   }
 }
 
+async function runCodex() {
+  try {
+    const res = await queryNative('codex')
+    if (!res || !res.cliFound) return { ok: false, error: '未找到 Codex CLI' }
+    const pages = buildCodexPages(res)
+    if (!pages.length) return { ok: false, error: 'Codex 无可用数据' }
+    return { ok: true, provider: 'codex', pages }
+  } catch (err) {
+    return { ok: false, error: 'Codex 宿主不可用: ' + String((err && err.message) || err) }
+  }
+}
+
 async function runDeepseek(ledgerMode) {
   if (ledgerMode === 'dsToken') {
     const creds = await readCredentials()
@@ -296,6 +310,7 @@ async function getUsageSnapshot() {
   const cfg = await getConfig()
   let result
   if (cfg.usageMode === 'opencode') result = await runOpencode()
+  else if (cfg.usageMode === 'codex') result = await runCodex()
   else result = await runDeepseek(cfg.ledgerMode)
   if (!result.ok) {
     const reason = result.error || ''
