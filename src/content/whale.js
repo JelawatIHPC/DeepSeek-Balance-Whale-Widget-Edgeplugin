@@ -197,14 +197,13 @@
   hintEl.addEventListener('click', function (e) {
     e.stopPropagation()
     if (!bubbleShown) return
+    if (usageMode === 'opencode') {
+      if (opencodeAdvanceOrClose()) startOpencodeRotation()
+      return
+    }
     if (state.pages && state.pages.length > 1) {
       state.pageIdx = (state.pageIdx + 1) % state.pages.length
-      if (usageMode === 'opencode') {
-        renderUsageBubble()
-        startOpencodeRotation()
-      } else {
-        render()
-      }
+      render()
     }
   })
 
@@ -228,13 +227,7 @@
     e.stopPropagation()
     if (!bubbleShown) return
     if (usageMode === 'opencode') {
-      if (state.pages && state.pages.length > 1) {
-        state.pageIdx = (state.pageIdx + 1) % state.pages.length
-        renderUsageBubble()
-        startOpencodeRotation()
-      } else {
-        hideBubble()
-      }
+      if (opencodeAdvanceOrClose()) startOpencodeRotation()
       return
     }
     if (bubbleRandomActive) {
@@ -621,6 +614,7 @@
   var soundOn = true
   var soundVol = 0.9
   var soundSet = 'duck'
+  var skin = 'deepseek'
   var usageMode = 'deepseek'
   var ledgerMode = 'ledger'
   var peakMode = 'default'
@@ -662,21 +656,24 @@
     if (bubbleTimer) { clearTimeout(bubbleTimer); bubbleTimer = null }
     if (!bubbleShown) return
     if (state.pages && state.pages.length > 1) {
-      var total = state.pages.length
-      var count = 0
-      function step() {
-        count++
-        if (count >= total) {
-          hideBubble()
-          return
-        }
-        state.pageIdx = (state.pageIdx + 1) % state.pages.length
-        renderUsageBubble()
-        opencodeBubbleTimer = setTimeout(step, ROTATE_MS)
-      }
-      opencodeBubbleTimer = setTimeout(step, ROTATE_MS)
+      opencodeBubbleTimer = setTimeout(opencodeTick, ROTATE_MS)
     } else {
       bubbleTimer = setTimeout(hideBubble, BUBBLE_MS)
+    }
+  }
+  function opencodeAdvanceOrClose() {
+    if (!state.pages || state.pageIdx >= state.pages.length - 1) {
+      hideBubble()
+      return false
+    }
+    state.pageIdx++
+    renderUsageBubble()
+    return true
+  }
+  function opencodeTick() {
+    opencodeBubbleTimer = null
+    if (opencodeAdvanceOrClose()) {
+      opencodeBubbleTimer = setTimeout(opencodeTick, ROTATE_MS)
     }
   }
   function showOpencodeBubble() {
@@ -976,6 +973,7 @@
   var hitReady = false
   function setupHitTest() {
     try {
+      hitReady = false
       hitCanvas = document.createElement('canvas')
       hitCanvas.width = 610
       hitCanvas.height = 610
@@ -987,7 +985,7 @@
         } catch (err) {}
       }
       probe.onerror = function () {}
-      probe.src = IMG_URL
+      probe.src = img.src
     } catch (err) {}
   }
   function isWhaleHit(e) {
@@ -1150,6 +1148,13 @@
   applySoundSet()
   setupHitTest()
 
+  function applySkin(next) {
+    skin = next === 'ybb' ? 'ybb' : 'deepseek'
+    root.classList.toggle('dshwv-skin-ybb', skin === 'ybb')
+    img.src = chrome.runtime.getURL(skin === 'ybb' ? 'assets/YBBniang1.png' : 'assets/DSniang1.png')
+    setupHitTest()
+  }
+
   function applyVisibility(cfg) {
     var hidden = !!(cfg && (cfg.paused || (cfg.hiddenSites || []).indexOf(location.origin) !== -1))
     root.style.display = hidden ? 'none' : ''
@@ -1170,6 +1175,7 @@
       ledgerMode = c.ledgerMode === 'dsToken' ? 'dsToken' : 'ledger'
       ledgerSelect.value = ledgerMode
     }
+    if (typeof c.skin === 'string') applySkin(c.skin)
   })
 
   function init() {
@@ -1197,6 +1203,7 @@
           soundSelect.value = soundSet
           applySoundSet()
         }
+        if (typeof d.skin === 'string') applySkin(d.skin)
         if (typeof d.usageMode === 'string') {
           usageMode = d.usageMode === 'opencode' ? 'opencode' : 'deepseek'
           usageSelect.value = usageMode
