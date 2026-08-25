@@ -43,3 +43,7 @@
 .dshwv-check{width:16px;height:16px;accent-color:#203170;cursor:pointer;flex:0 0 auto}
 .dshwv-menu-sep{height:1px;background:rgba(32,49,112,.25);margin:6px 0}
 .dshwv-volpct{width:44px;text-align:right;color:#203170;font-size:12px}
+.dshwv-root.dshwv-skin-ybb .dshwv-text{color:#e6949e}
+.dshwv-root.dshwv-skin-ybb .dshwv-hint{color:#eeb2bc}
+.dshwv-root.dshwv-skin-ybb .dshwv-bubble svg path,
+.dshwv-root.dshwv-skin-ybb .dshwv-bubble svg ellipse{stroke:#e6949e}

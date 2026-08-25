@@ -13,6 +13,10 @@
       width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 8px;
       border: 1px solid #2a3140; background: #1a2029; color: #dfe6f1; font-size: 13px;
     }
+    select.sel {
+      width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 8px;
+      border: 1px solid #2a3140; background: #1a2029; color: #dfe6f1; font-size: 13px;
+    }
     .btn {
       margin-top: 10px; padding: 8px 18px; border: none; border-radius: 8px;
       background: #2a5bd7; color: #fff; font-size: 13px; cursor: pointer;
@@ -38,6 +42,9 @@
       h2 { color: #5a6474; }
       label { color: #6b7484; }
       input[type=text], input[type=password] {
+        background: #fff; border-color: #c9d1dd; color: #1c2330;
+      }
+      select.sel {
         background: #fff; border-color: #c9d1dd; color: #1c2330;
       }
       .btn.ghost { background: rgba(20,30,60,.07); color: #1c2330; }
@@ -78,6 +85,15 @@
     <input type="text" id="siteInput" placeholder="https://example.com" />
     <button class="btn ghost" id="btnAddSite">添加</button>
     <button class="btn danger" id="btnClearSites">清空</button>
+  </div>
+
+  <h2>外观</h2>
+  <div class="field">
+    <label for="skin">皮肤（仅此处可调整）</label>
+    <select id="skin" class="sel">
+      <option value="deepseek">Deepseek小鲸鱼</option>
+      <option value="ybb">魚大摆摆</option>
+    </select>
   </div>
 
   <h2>其他</h2>

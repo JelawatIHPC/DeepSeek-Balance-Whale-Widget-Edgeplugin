@@ -57,6 +57,7 @@
     $('apiKey').value = creds.apiKey || ''
     $('platformToken').value = creds.platformToken || ''
     $('paused').checked = !!cfg.paused
+    $('skin').value = cfg.skin === 'ybb' ? 'ybb' : 'deepseek'
     renderSites()
   }
 
@@ -99,16 +100,21 @@
     renderSites()
   })
 
+  $('skin').addEventListener('change', async function () {
+    cfg = await send('setConfig', { patch: { skin: $('skin').value } }) || cfg
+  })
+
   $('btnReset').addEventListener('click', async function () {
     cfg = await send('setConfig', {
       patch: {
         scale: 1, sound: true, vol: 0.9, soundSet: 'duck', usageMode: 'deepseek', ledgerMode: 'ledger',
         peakMode: 'default', bubbleOn: true, scrollGapOn: false, scrollGapPx: 17,
         hiddenSites: ['http://127.0.0.1:3080', 'http://localhost:3080'],
-        paused: false,
+        paused: false, skin: 'deepseek',
       }
     }) || cfg
     $('paused').checked = false
+    $('skin').value = 'deepseek'
     renderSites()
   })
 
