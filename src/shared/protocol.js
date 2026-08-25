@@ -4,4 +4,6 @@ export const MSG = {
   GET_CONFIG: 'getConfig',
   SET_CONFIG: 'setConfig',
   GET_PROVIDERS: 'getProviders',
+  GET_BUBBLE_PAGES: 'getBubblePages',
+  REFRESH_PAGES: 'refreshPages',
 }

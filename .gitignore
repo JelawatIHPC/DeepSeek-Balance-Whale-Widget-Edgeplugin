@@ -3,5 +3,5 @@ dist/
 *.der
 *.log
 scripts/dev-extension-key.pem
-/PLAN.md
-/CHANGELOG.md
+docs/
+AGENTS.md

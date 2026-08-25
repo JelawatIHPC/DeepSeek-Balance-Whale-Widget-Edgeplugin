@@ -23,7 +23,13 @@
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
-      "js": ["src/content/whale.js"],
+      "js": [
+        "src/content/core.js",
+        "src/content/data.js",
+        "src/content/bubble.js",
+        "src/content/interact.js",
+        "src/content/whale.js"
+      ],
       "css": ["src/content/whale.css"],
       "run_at": "document_idle",
       "all_frames": false

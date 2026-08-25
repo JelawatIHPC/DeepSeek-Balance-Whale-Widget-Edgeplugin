@@ -2,6 +2,7 @@ import { MSG } from '../shared/protocol.js'
 import { isPeakTime, computeTodayUsage } from '../shared/pricing.js'
 import { PROVIDER_META } from '../shared/providers.js'
 import { todayKey, newLedger, applyLedgerObservation } from '../shared/ledger.js'
+import { buildPageSet, buildBubblePageSet } from '../shared/pages.js'
 
 const BALANCE_URL = 'https://api.deepseek.com/user/balance'
 const BALANCE_TTL_MS = 25000
@@ -350,7 +351,42 @@ async function refreshPayloadInBackground() {
       balanceCache = { at: Date.now(), payload: p }
     }
   } catch (err) {}
+  broadcastPages()
 }
+
+const bubblePorts = new Set()
+
+function safePostPages(port, ps) {
+  try {
+    port.postMessage({ type: 'pages', pageSet: ps })
+  } catch (err) {}
+}
+
+function buildCurrentPageSet(roll) {
+  return Promise.all([getBalance(), getConfig()]).then(([payload, cfg]) =>
+    roll ? buildBubblePageSet(payload, cfg) : buildPageSet(payload, cfg)
+  )
+}
+
+function broadcastPages() {
+  if (!bubblePorts.size) return
+  buildCurrentPageSet(false)
+    .then((ps) => {
+      for (const port of Array.from(bubblePorts)) safePostPages(port, ps)
+    })
+    .catch(() => {})
+}
+
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== 'dshw-bubble') return
+  bubblePorts.add(port)
+  port.onDisconnect.addListener(() => {
+    bubblePorts.delete(port)
+  })
+  buildCurrentPageSet(true)
+    .then((ps) => safePostPages(port, ps))
+    .catch(() => {})
+})
 
 async function fetchAndCache() {
   if (balanceInFlight) return balanceInFlight
@@ -362,6 +398,7 @@ async function fetchAndCache() {
       if (payload.ok || (payload.pages && payload.pages.length)) {
         balanceCache = { at: Date.now(), payload }
         await writePayloadCache(payload).catch(() => {})
+        broadcastPages()
       }
       if (!payload.ok && !payload.transient) console.error('[dsh-whale]', payload.code, payload.error)
       return payload
@@ -406,6 +443,10 @@ async function handleMessage(msg) {
       return PROVIDER_META
     case MSG.GET_USAGE_SNAPSHOT:
       return getUsageSnapshot()
+    case MSG.GET_BUBBLE_PAGES:
+      return buildCurrentPageSet(true)
+    case MSG.REFRESH_PAGES:
+      return fetchAndCache().then(() => ({ ok: true }))
     default:
       return null
   }
