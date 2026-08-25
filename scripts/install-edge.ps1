@@ -181,6 +181,30 @@ function Invoke-NativeRemove {
   Write-Host '[OK] native host unregistered' -ForegroundColor Green
 }
 
+function Invoke-Pack {
+  try { $m = [IO.File]::ReadAllText($ManifestPath) | ConvertFrom-Json } catch {
+    Write-Host '[FAIL] manifest.json unreadable' -ForegroundColor Red; exit 1
+  }
+  $version = $m.version
+  $outDir = Join-Path $Root 'dist'
+  New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+  $zip = Join-Path $outDir ("dsh-whale-edge-v$version.zip")
+  if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
+  $staging = Join-Path $env:TEMP ('dshwhale-pack-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+  New-Item -ItemType Directory -Force -Path $staging | Out-Null
+  try {
+    Copy-Item -LiteralPath $ManifestPath -Destination (Join-Path $staging 'manifest.json')
+    Copy-Item -LiteralPath (Join-Path $Root 'src') -Destination (Join-Path $staging 'src') -Recurse
+    Copy-Item -LiteralPath (Join-Path $Root 'assets') -Destination (Join-Path $staging 'assets') -Recurse
+    Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $zip -Force
+    $size = [Math]::Round((Get-Item -LiteralPath $zip).Length / 1KB, 1)
+    Write-Host "[OK] packed dist\dsh-whale-edge-v$version.zip ($size KB)" -ForegroundColor Green
+    Write-Host '     contains: manifest.json + src/ + assets/  (store/submission ready)'
+  } finally {
+    Remove-Item -Recurse -Force $staging -ErrorAction SilentlyContinue
+  }
+}
+
 switch ($Mode) {
   'guide' { Invoke-Guide }
   'doctor' { Invoke-Doctor }
@@ -193,6 +217,6 @@ switch ($Mode) {
     else { Invoke-Native }
   }
   'pack' {
-    Write-Host '[TODO] pack lands in P6 (see PLAN.md section 6).' -ForegroundColor Yellow
+    Invoke-Pack
   }
 }
