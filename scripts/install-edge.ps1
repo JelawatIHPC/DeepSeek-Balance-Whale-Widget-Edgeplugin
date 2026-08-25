@@ -67,6 +67,14 @@ function Invoke-Guide {
   if (-not $edge) {
     Write-Host '[WARN] msedge.exe not found; open edge://extensions manually.' -ForegroundColor Yellow
   }
+  Write-Host '[1/2] Registering Opencode native host (no admin needed, reversible)...'
+  $nativeOk = Invoke-Native
+  if (-not $nativeOk) {
+    Write-Host '[WARN] skipped - the whale works fine without it (only Opencode source unavailable).' -ForegroundColor Yellow
+  } else {
+    Write-Host '     If Edge is already running, restart it once to activate this.'
+  }
+  Write-Host '[2/2] Extension loading guide below.'
   Set-Clipboard -Value $Root
   $extId = ''
   try {
@@ -91,9 +99,11 @@ function Invoke-Guide {
     Write-Host "Extension ID (fixed): $extId"
     Write-Host ''
   }
-  Write-Host 'Optional: Opencode usage source (local AI usage dashboard)'
-  Write-Host '  Run:  .\scripts\install-edge.ps1 -Mode native'
-  Write-Host '  Then fully restart Edge and pick "Opencode" in the whale menu.'
+  if ($nativeOk) {
+    Write-Host 'Opencode usage source: registered. Fully restart Edge once,'
+    Write-Host 'then pick "Opencode" in the whale menu (用量).'
+    Write-Host ''
+  }
   Write-Host '====================================================================' -ForegroundColor Cyan
   Write-Host ''
   Write-Host 'Press any key to open the extensions page...' -ForegroundColor Green
@@ -154,11 +164,11 @@ function Invoke-Native {
   $cmdPath = Join-Path $Root 'native-host\run.cmd'
   $tmplPath = Join-Path $Root 'native-host\com.dsh_whale.opencode.json.tmpl'
   $manifestPath = Join-Path $Root 'manifest.json'
-  if (-not (Test-Path -LiteralPath $cmdPath)) { Write-Host '[FAIL] native-host\run.cmd not found' -ForegroundColor Red; exit 1 }
-  if (-not (Test-Path -LiteralPath $tmplPath)) { Write-Host '[FAIL] host manifest template not found' -ForegroundColor Red; exit 1 }
-  if (-not (Test-Path -LiteralPath "$env:SystemRoot\System32\winsqlite3.dll")) { Write-Host '[FAIL] winsqlite3.dll missing' -ForegroundColor Red; exit 1 }
+  if (-not (Test-Path -LiteralPath $cmdPath)) { Write-Host '[FAIL] native-host\run.cmd not found' -ForegroundColor Red; return $false }
+  if (-not (Test-Path -LiteralPath $tmplPath)) { Write-Host '[FAIL] host manifest template not found' -ForegroundColor Red; return $false }
+  if (-not (Test-Path -LiteralPath "$env:SystemRoot\System32\winsqlite3.dll")) { Write-Host '[FAIL] winsqlite3.dll missing' -ForegroundColor Red; return $false }
   $m = [IO.File]::ReadAllText($manifestPath) | ConvertFrom-Json
-  if (-not $m.key) { Write-Host '[FAIL] manifest.json missing "key" field' -ForegroundColor Red; exit 1 }
+  if (-not $m.key) { Write-Host '[FAIL] manifest.json missing "key" field' -ForegroundColor Red; return $false }
   $extId = Get-ExtensionIdFromKey $m.key
   New-Item -ItemType Directory -Force -Path $dir | Out-Null
   $tmpl = [IO.File]::ReadAllText($tmplPath)
@@ -170,7 +180,7 @@ function Invoke-Native {
   Write-Host "[OK] extension ID derived from manifest key: $extId" -ForegroundColor Green
   Write-Host "[OK] native host manifest: $jsonPath" -ForegroundColor Green
   Write-Host "[OK] registry: HKCU\Software\Microsoft\Edge\NativeMessagingHosts\$hostName"
-  Write-Host '     restart Edge afterwards for the registration to take effect.'
+  return $true
 }
 
 function Invoke-NativeRemove {
@@ -214,7 +224,7 @@ switch ($Mode) {
   }
   'native' {
     if ($Remove) { Invoke-NativeRemove }
-    else { Invoke-Native }
+    else { [void](Invoke-Native) }
   }
   'pack' {
     Invoke-Pack

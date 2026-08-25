@@ -28,7 +28,7 @@
 
 > 面向测试小伙伴的完整步骤。共 4 步，约 1 分钟。
 
-### 方法 A：手动安装（推荐给测试）
+### 方法 A：手动安装
 
 1. **下载仓库**：GitHub 页面点 **Code → Download ZIP** 并解压（或 `git clone`）
 2. 打开 Edge，地址栏输入并回车：
@@ -38,28 +38,34 @@
 3. 打开左下角 **「开发人员模式」** 开关
 4. 点击 **「加载解压缩的扩展」**，选择解压后的**仓库根目录**（就是包含 `manifest.json` 的那一层文件夹）
 5. 完成 🎉 所有网页右下角出现小鲸鱼。**已打开的网页需要刷新（F5）** 才会出现
+6. 想要 Opencode 用量数据源：再执行一次下方方法 B 的脚本即可（注册一次本地宿主）
 
-### 方法 B：安装脚本（仓库内执行）
+### 方法 B：安装脚本（一条命令全装）
 
 ```powershell
 .\scripts\install-edge.ps1
 ```
 
-脚本会：校验扩展文件 → 把仓库路径复制到剪贴板 → 显示完整图文指引 → **按任意键**后自动打开 `edge://extensions`，再按指引「开发人员模式 → 加载解压缩的扩展 → 粘贴路径」即可。
+脚本会：校验扩展文件 → 注册 Opencode 数据源宿主 → 把仓库路径复制到剪贴板 → 显示完整指引 → **按任意键**后自动打开 `edge://extensions`，再按指引「开发人员模式 → 加载解压缩的扩展 → 粘贴路径」即可。
 
 ---
 
 ## 启用 Opencode 用量（可选，本地 AI 用量看板）
 
-1. 在仓库目录执行：
-   ```powershell
-   .\scripts\install-edge.ps1 -Mode native
-   ```
-   这会注册一个读取 Opencode 数据库的本地宿主（仅使用 Windows 自带组件，无任何依赖）
-2. **完全退出 Edge 并重新打开**（任务管理器结束所有 `msedge.exe`，或重启电脑）
-3. 点鲸鱼 → 汉堡菜单 →「用量」→ 选 **Opencode**
-4. 点击鲸鱼弹出三页轮播：今日已用 Token → 今日金额 → 本月已用（每页带 Top 模型小字）
-5. 不想用了：`.\scripts\install-edge.ps1 -Mode native -Remove`
+用**方法 B 的脚本**安装的话，宿主已自动注册，只需：
+
+1. **完全退出 Edge 并重新打开**（任务管理器结束所有 `msedge.exe`，或重启电脑）
+2. 点鲸鱼 → 汉堡菜单 →「用量」→ 选 **Opencode**
+
+手动安装（方法 A）的用户，补跑一次脚本即可：
+
+```powershell
+.\scripts\install-edge.ps1 -Mode native
+```
+
+然后同样重启 Edge、在菜单里切换。点击鲸鱼弹出三页轮播：今日已用 Token → 今日金额 → 本月已用（每页带 Top 模型小字）。
+
+不想用了：`.\scripts\install-edge.ps1 -Mode native -Remove`
 
 > 该模式读取的是本机 Opencode 的用量数据库（`~/.local/share/opencode/opencode.db`），金额为 OpenCode 官方口径（USD）。
 
