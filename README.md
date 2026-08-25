@@ -108,7 +108,6 @@
 - 改了 `src/content/`（鲸鱼本体）→ **刷新网页（F5）**
 - 自测：`node tests\test-pricing.mjs` / `node tests\test-ledger.mjs` / `node tests\test-native-host.mjs`
 - 体检：`.\scripts\install-edge.ps1 -Mode doctor`
-- 完整设计与决策记录见 [PLAN.md](PLAN.md)，变更历史见 [CHANGELOG.md](CHANGELOG.md)
 
 ## 常见问题
 
