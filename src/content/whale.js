@@ -314,7 +314,7 @@
     peakMode = v === 'liangwen' || v === 'qiangqiang' ? v : 'default'
     peakSelect.value = peakMode
     saveConfig()
-    dataRefresh()
+    if (!NS.bubble.isActive()) dataRefresh()
   }
   function setBubbleOn(v) {
     bubbleOn = !!v
@@ -398,8 +398,10 @@
   }
 
   function onWhaleClick() {
-    if (bubbleOn) NS.bubble.open()
-    dataRefresh()
+    if (!bubbleOn) return
+    var wasShown = NS.bubble.isActive()
+    NS.bubble.open()
+    if (!wasShown) dataRefresh()
   }
 
   function dataRefresh() {
