@@ -297,6 +297,7 @@
     usageMode = v === 'opencode' ? 'opencode' : 'deepseek'
     usageSelect.value = usageMode
     ledgerSelect.disabled = usageMode === 'opencode'
+    NS.bubble.hide()
     var p = saveConfig()
     if (p && typeof p.then === 'function') p.then(function () { dataRefresh() })
     else dataRefresh()
@@ -304,6 +305,7 @@
   function setLedgerMode(v) {
     ledgerMode = v === 'dsToken' ? 'dsToken' : 'ledger'
     ledgerSelect.value = ledgerMode
+    NS.bubble.hide()
     var p = saveConfig()
     if (p && typeof p.then === 'function') p.then(function () { dataRefresh() })
     else dataRefresh()
@@ -433,10 +435,12 @@
       usageMode = c.usageMode === 'opencode' ? 'opencode' : 'deepseek'
       usageSelect.value = usageMode
       ledgerSelect.disabled = usageMode === 'opencode'
+      NS.bubble.hide()
     }
     if (typeof c.ledgerMode === 'string') {
       ledgerMode = c.ledgerMode === 'dsToken' ? 'dsToken' : 'ledger'
       ledgerSelect.value = ledgerMode
+      NS.bubble.hide()
     }
     if (typeof c.skin === 'string') applySkin(c.skin)
   })

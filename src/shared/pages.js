@@ -10,11 +10,20 @@ export function fmtMoney(amount, currency) {
   return currency === 'CNY' ? '¥ ' + fixed : fixed + ' ' + currency
 }
 
+export function buildUnavailablePage(mode, error) {
+  const name = mode === 'opencode' ? 'Opencode' : '数据源'
+  return { label: name, main: '不可用', sub: String(error || '请检查配置').slice(0, 40), kind: 'error' }
+}
+
 export function buildPageSet(payload, cfg) {
   const pages = []
   const mode = payload.requestedMode
   if (mode === 'opencode') {
-    for (const p of payload.pages || []) pages.push(p)
+    if (payload.pages && payload.pages.length) {
+      for (const p of payload.pages) pages.push(p)
+    } else if (payload.usageError) {
+      pages.push(buildUnavailablePage(mode, payload.usageError))
+    }
   } else {
     if (payload.ok) {
       pages.push({
@@ -24,7 +33,11 @@ export function buildPageSet(payload, cfg) {
         kind: 'balance',
       })
     }
-    for (const p of payload.pages || []) pages.push(p)
+    if (payload.pages && payload.pages.length) {
+      for (const p of payload.pages) pages.push(p)
+    } else if (payload.usageError) {
+      pages.push(buildUnavailablePage(mode, payload.usageError))
+    }
   }
   return {
     requestedMode: mode,
@@ -41,7 +54,10 @@ import { rollDialogue } from './dialogue.js'
 
 export function buildBubblePageSet(payload, cfg, random) {
   const ps = buildPageSet(payload, cfg)
-  const dialogue = rollDialogue(random)
-  if (dialogue) ps.pages.push(dialogue)
+  const hasError = ps.pages.some((p) => p && p.kind === 'error')
+  if (!hasError) {
+    const dialogue = rollDialogue(random)
+    if (dialogue) ps.pages.push(dialogue)
+  }
   return ps
 }
