@@ -43,9 +43,9 @@
       balanceEl.classList.add('disabled')
       var pages = bal.pages || []
       $('usage').textContent = pages[0] ? pages[0].main : '--'
-      $('source').textContent = 'Opencode' + (bal.usageFellBack ? '（已回落）' : '')
-      if (bal.usageFellBack && bal.usageError) {
-        $('status').textContent = '回落原因：' + bal.usageError.slice(0, 60)
+      $('source').textContent = 'Opencode'
+      if (bal.usageError) {
+        $('status').textContent = '不可用：' + bal.usageError.slice(0, 60)
         $('status').classList.add('err')
       } else {
         $('status').textContent = 'Opencode 用量模式'
@@ -61,9 +61,9 @@
       var pages = bal.pages || []
       var p = pages[Math.min(0, pages.length - 1)]
       $('usage').textContent = p ? p.main : (bal.todayUsage !== null && bal.todayUsage !== undefined ? '¥ ' + Number(bal.todayUsage).toFixed(2) : '--')
-      $('source').textContent = providerLabel(bal.usageMode) + (bal.usageFellBack ? '（已回落）' : '')
-      if (bal.usageFellBack && bal.usageError) {
-        $('status').textContent = '回落原因：' + bal.usageError.slice(0, 60)
+      $('source').textContent = providerLabel(bal.usageMode)
+      if (bal.usageError) {
+        $('status').textContent = '不可用：' + bal.usageError.slice(0, 60)
         $('status').classList.add('err')
       } else {
         $('status').textContent = bal.stale ? '使用最近余额（网络抖动）' : '正常'
@@ -73,9 +73,9 @@
       var pages = (bal && bal.pages) || []
       if (pages.length > 0) {
         $('usage').textContent = pages[0].main
-        $('source').textContent = providerLabel(bal.usageMode) + (bal.usageFellBack ? '（已回落）' : '')
-        if (bal.usageFellBack && bal.usageError) {
-          $('status').textContent = '回落原因：' + bal.usageError.slice(0, 60)
+        $('source').textContent = providerLabel(bal.usageMode)
+        if (bal.usageError) {
+          $('status').textContent = '不可用：' + bal.usageError.slice(0, 60)
         } else {
           $('status').textContent = (bal && bal.error) ? '余额不可用：' + bal.error.slice(0, 40) : '余额不可用'
         }

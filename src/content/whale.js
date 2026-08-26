@@ -301,6 +301,7 @@
     usageMode = mapMode(v)
     usageSelect.value = usageMode
     ledgerSelect.disabled = usageMode !== 'deepseek'
+    NS.bubble.hide()
     var p = saveConfig()
     if (p && typeof p.then === 'function') p.then(function () { dataRefresh() })
     else dataRefresh()
@@ -308,6 +309,7 @@
   function setLedgerMode(v) {
     ledgerMode = v === 'dsToken' ? 'dsToken' : 'ledger'
     ledgerSelect.value = ledgerMode
+    NS.bubble.hide()
     var p = saveConfig()
     if (p && typeof p.then === 'function') p.then(function () { dataRefresh() })
     else dataRefresh()
@@ -316,7 +318,7 @@
     peakMode = v === 'liangwen' || v === 'qiangqiang' ? v : 'default'
     peakSelect.value = peakMode
     saveConfig()
-    dataRefresh()
+    if (!NS.bubble.isActive()) dataRefresh()
   }
   function setBubbleOn(v) {
     bubbleOn = !!v
@@ -400,8 +402,10 @@
   }
 
   function onWhaleClick() {
-    if (bubbleOn) NS.bubble.open()
-    dataRefresh()
+    if (!bubbleOn) return
+    var wasShown = NS.bubble.isActive()
+    NS.bubble.open()
+    if (!wasShown) dataRefresh()
   }
 
   function dataRefresh() {
@@ -437,10 +441,12 @@
       usageMode = mapMode(c.usageMode)
       usageSelect.value = usageMode
       ledgerSelect.disabled = usageMode !== 'deepseek'
+      NS.bubble.hide()
     }
     if (typeof c.ledgerMode === 'string') {
       ledgerMode = c.ledgerMode === 'dsToken' ? 'dsToken' : 'ledger'
       ledgerSelect.value = ledgerMode
+      NS.bubble.hide()
     }
     if (typeof c.skin === 'string') applySkin(c.skin)
   })

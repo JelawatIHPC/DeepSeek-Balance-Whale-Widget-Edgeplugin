@@ -308,18 +308,9 @@ async function runDeepseek(ledgerMode) {
 
 async function getUsageSnapshot() {
   const cfg = await getConfig()
-  let result
-  if (cfg.usageMode === 'opencode') result = await runOpencode()
-  else if (cfg.usageMode === 'codex') result = await runCodex()
-  else result = await runDeepseek(cfg.ledgerMode)
-  if (!result.ok) {
-    const reason = result.error || ''
-    const fallback = await runDeepseek('ledger')
-    fallback.fellBack = true
-    fallback.sourceError = reason
-    return fallback
-  }
-  return result
+  if (cfg.usageMode === 'opencode') return runOpencode()
+  if (cfg.usageMode === 'codex') return runCodex()
+  return runDeepseek(cfg.ledgerMode)
 }
 
 async function getBalancePayload() {
@@ -333,11 +324,11 @@ async function getBalancePayload() {
   }
   const snap = await getUsageSnapshot()
   payload.requestedMode = cfg.usageMode
-  payload.usageMode = snap.provider
-  payload.usageFellBack = !!snap.fellBack
-  payload.todayUsage = snap.amount !== undefined ? snap.amount : null
+  payload.usageMode = snap.ok ? snap.provider : cfg.usageMode
+  payload.usageFellBack = false
+  payload.todayUsage = snap.ok && snap.amount !== undefined ? snap.amount : null
   payload.pages = snap.pages || []
-  payload.usageError = snap.sourceError || snap.error || ''
+  payload.usageError = snap.ok ? '' : (snap.error || '')
   if (payload.ok) {
     await recordLedgerUsage(Number(payload.totalBalance), payload.currency)
     payload.isPeak = isPeakTime(Math.floor(Date.now() / 1000))
