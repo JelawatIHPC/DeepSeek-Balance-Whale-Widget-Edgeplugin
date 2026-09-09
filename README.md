@@ -1,11 +1,12 @@
 # DSH 小鲸鱼余额挂件 · Edge 浏览器扩展
 
-浏览器右下角的常驻小鲸鱼挂件（Microsoft Edge / Chromium，Manifest V3）。它是 DSH 插件版的浏览器扩展移植，现在可以独立运行，同时支持显示 **Deepseek 余额** 与 **本地 Opencode 用量**。
+浏览器右下角的常驻小鲸鱼挂件（Microsoft Edge / Chromium，Manifest V3）。它是 DSH 插件版的浏览器扩展移植，现在可以独立运行，同时支持显示 **Deepseek 余额**、**本地 Codex 用量** 与 **本地 Opencode 用量**。
 
 ## 特性
 
 - 🐋 所有网页右下角常驻（可拖拽、四边吸附、左侧镜像翻转、按压 Q 弹）
 - 💰 **Deepseek 模式**：余额 + 今日已用（小鲸鱼记账 / 实时·令牌 两种口径）
+- 📊 **Codex 模式**：显示 Codex 5h / 周用量窗口、credits 或当前会话 token（取决于本机 Codex 可用数据）
 - 📊 **Opencode 模式**：点击鲸鱼弹出本地 Opencode 用量，**三页自动轮播**：
   - 今日已用 Token / 今日金额（USD）/ 本月已用 Token
   - 每页附 Top 模型小字（如 `DeepSeek V4 Flash: 34.1M`），播完自动收起
@@ -14,7 +15,7 @@
 - 🖱️ 工具栏 popup：余额与用量速览、**隐藏本站**、**全局暂停**（即时生效）
 - 🛠️ 设置页：API Key 录入校验、站点黑名单、恢复默认
 - 🔊 音效 / 💬 随机台词气泡 / 🎨 浅色深色主题自适应
-- 📦 零第三方依赖（原生宿主仅用 Windows 自带 PowerShell + winsqlite3）
+- 📦 零第三方依赖（原生宿主仅用 Windows 自带 PowerShell；Opencode 读取额外使用系统 winsqlite3）
 
 ## 环境要求
 
@@ -38,36 +39,36 @@
 3. 打开左下角 **「开发人员模式」** 开关
 4. 点击 **「加载解压缩的扩展」**，选择解压后的**仓库根目录**（就是包含 `manifest.json` 的那一层文件夹）
 5. 完成 🎉 所有网页右下角出现小鲸鱼。**已打开的网页需要刷新（F5）** 才会出现
-6. 想要 Opencode 用量数据源：再执行一次下方方法 B 的脚本即可（注册一次本地宿主）
+6. 想要 Codex / Opencode 用量数据源：再执行一次下方方法 B 的脚本即可（注册一次本地宿主）
 
 ### 方法 B：安装脚本（一条命令全装）
 
 ```powershell
-.\scripts\install-edge.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-edge.ps1
 ```
 
-脚本会：校验扩展文件 → 注册 Opencode 数据源宿主 → 把仓库路径复制到剪贴板 → 显示完整指引 → **按任意键**后自动打开 `edge://extensions`，再按指引「开发人员模式 → 加载解压缩的扩展 → 粘贴路径」即可。
+脚本会：校验扩展文件 → 注册 Codex / Opencode 数据源宿主 → 把仓库路径复制到剪贴板 → 显示完整指引 → **按任意键**后自动打开 `edge://extensions`，再按指引「开发人员模式 → 加载解压缩的扩展 → 粘贴路径」即可。
 
 ---
 
-## 启用 Opencode 用量（可选，本地 AI 用量看板）
+## 启用 Codex / Opencode 用量（可选，本地 AI 用量看板）
 
 用**方法 B 的脚本**安装的话，宿主已自动注册，只需：
 
 1. **完全退出 Edge 并重新打开**（任务管理器结束所有 `msedge.exe`，或重启电脑）
-2. 点鲸鱼 → 汉堡菜单 →「用量」→ 选 **Opencode**
+2. 点鲸鱼 → 汉堡菜单 →「用量」→ 选 **Codex** 或 **Opencode**
 
 手动安装（方法 A）的用户，补跑一次脚本即可：
 
 ```powershell
-.\scripts\install-edge.ps1 -Mode native
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-edge.ps1 -Mode native
 ```
 
-然后同样重启 Edge、在菜单里切换。点击鲸鱼弹出三页轮播：今日已用 Token → 今日金额 → 本月已用（每页带 Top 模型小字）。
+然后同样重启 Edge、在菜单里切换。Codex 模式显示本机 Codex 可读到的额度 / token 信息；Opencode 模式点击鲸鱼弹出三页轮播：今日已用 Token → 今日金额 → 本月已用（每页带 Top 模型小字）。
 
-不想用了：`.\scripts\install-edge.ps1 -Mode native -Remove`
+不想用了：`powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-edge.ps1 -Mode native -Remove`
 
-> 该模式读取的是本机 Opencode 的用量数据库（`~/.local/share/opencode/opencode.db`），金额为 OpenCode 官方口径（USD）。
+> Opencode 模式读取的是本机 Opencode 的用量数据库（`~/.local/share/opencode/opencode.db`），金额为 OpenCode 官方口径（USD）。Codex 模式读取本机 Codex CLI / Codex 会话文件。
 
 ## 配置 Deepseek 余额（可选）
 
@@ -102,7 +103,7 @@
 │   ├── shared/                # 定价 / 记账 / 数据源 / 协议（纯逻辑，可单测）
 │   ├── options/               # 设置页
 │   └── popup/                 # 工具栏弹窗
-├── native-host/               # Opencode 读取宿主（PowerShell + winsqlite3，零依赖）
+├── native-host/               # Codex / Opencode 读取宿主（PowerShell + native launcher）
 ├── scripts/install-edge.ps1   # 安装 / native 注册 / 打包 / 体检脚本
 ├── tests/                     # 自检测试（node 直接运行）
 └── legacy/                    # 原 DSH 插件版（参考）
@@ -113,14 +114,14 @@
 - 改了 `src/background/` → `edge://extensions` 里点「重新加载」
 - 改了 `src/content/`（鲸鱼本体）→ **刷新网页（F5）**
 - 自测：`node tests\test-pricing.mjs` / `node tests\test-ledger.mjs` / `node tests\test-native-host.mjs`
-- 体检：`.\scripts\install-edge.ps1 -Mode doctor`
+- 体检：`powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-edge.ps1 -Mode doctor`
 
 ## 常见问题
 
 - **网页上没有鲸鱼**：确认扩展已加载；设置页「隐藏站点 / 全局暂停」是否开启；刷新页面（F5）
-- **Opencode 显示「已回落」**：打开 popup 看「状态」行的回落原因。常见：宿主未注册（跑 `-Mode native` 后**完整重启 Edge**）；扩展 ID 变化（重新跑 `-Mode native` 自动校正白名单）
+- **Codex / Opencode 显示「不可用」**：打开 popup 看「状态」行的原因。常见：宿主未注册（跑 `-Mode native` 后**完整重启 Edge**）；扩展 ID 变化（重新跑 `-Mode native` 自动校正白名单）；Codex CLI 未安装或未登录
 - **余额显示 `--`**：未配置 `DEEPSEEK_API_KEY`（设置页录入）
-- **卸载**：`edge://extensions` → 移除扩展；数据源宿主：`.\scripts\install-edge.ps1 -Mode native -Remove`
+- **卸载**：`edge://extensions` → 移除扩展；数据源宿主：`powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-edge.ps1 -Mode native -Remove`
 
 ## 许可证
 

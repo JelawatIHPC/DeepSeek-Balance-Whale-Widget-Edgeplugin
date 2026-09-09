@@ -169,9 +169,32 @@ $script:rpcProcess = $null
 $script:rpcId = 0
 
 function Get-CodexExecutable {
+    if (-not [string]::IsNullOrWhiteSpace($env:CODEX_CLI) -and (Test-Path -LiteralPath $env:CODEX_CLI)) {
+        return $env:CODEX_CLI
+    }
     $cmd = Get-Command codex -ErrorAction SilentlyContinue
-    if ($null -eq $cmd -or [string]::IsNullOrWhiteSpace($cmd.Source)) { return $null }
-    return $cmd.Source
+    if ($null -ne $cmd -and -not [string]::IsNullOrWhiteSpace($cmd.Source) -and (Test-Path -LiteralPath $cmd.Source)) {
+        return $cmd.Source
+    }
+    $candidates = @()
+    $roots = @(
+        (Join-Path $env:LOCALAPPDATA 'OpenAI\Codex\bin'),
+        (Join-Path $env:LOCALAPPDATA 'Programs\OpenAI Codex'),
+        (Join-Path $env:APPDATA 'npm')
+    )
+    foreach ($root in $roots) {
+        if ([string]::IsNullOrWhiteSpace($root) -or -not (Test-Path -LiteralPath $root)) { continue }
+        try {
+            $candidates += Get-ChildItem -LiteralPath $root -Recurse -Filter 'codex.exe' -ErrorAction SilentlyContinue |
+                Where-Object { -not $_.PSIsContainer } |
+                Sort-Object LastWriteTimeUtc -Descending
+            $candidates += Get-ChildItem -LiteralPath $root -Recurse -Filter 'codex.cmd' -ErrorAction SilentlyContinue |
+                Where-Object { -not $_.PSIsContainer } |
+                Sort-Object LastWriteTimeUtc -Descending
+        } catch {}
+    }
+    if ($candidates.Count -gt 0) { return $candidates[0].FullName }
+    return $null
 }
 
 function Get-CodexHome {

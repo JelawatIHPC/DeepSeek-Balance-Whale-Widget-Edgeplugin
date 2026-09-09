@@ -135,8 +135,9 @@
     renderSiteArea()
   })
 
-  $('btnRefresh').addEventListener('click', function () {
+  $('btnRefresh').addEventListener('click', async function () {
     $('balance').textContent = '…'
+    await send('refreshPages')
     load()
   })
 

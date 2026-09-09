@@ -69,11 +69,18 @@ function fmtPct(n) {
   return (Math.round(v * 10) / 10).toString() + '%'
 }
 
+function fmtRemainingPct(usedPercent) {
+  const used = Number(usedPercent)
+  if (!isFinite(used)) return '--'
+  return fmtPct(Math.max(0, Math.min(100, 100 - used)))
+}
+
 function fmtReset(resetsAt, windowMinutes) {
   if (resetsAt == null) return ''
   const d = new Date(Number(resetsAt) * 1000)
   const now = new Date()
-  if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()) {
+  const msUntilReset = d.getTime() - now.getTime()
+  if (msUntilReset > 0 && msUntilReset <= 24 * 60 * 60 * 1000) {
     const hh = String(d.getHours()).padStart(2, '0')
     const mm = String(d.getMinutes()).padStart(2, '0')
     return hh + ':' + mm + ' 重置'
@@ -89,6 +96,11 @@ function fmtTokensCodex(n) {
   return String(Math.round(x))
 }
 
+function hasPositiveCredits(balance) {
+  const n = Number(balance)
+  return isFinite(n) && n > 0
+}
+
 export function buildCodexPages(res) {
   const pages = []
   const limits = (res && res.limits) || {}
@@ -97,7 +109,7 @@ export function buildCodexPages(res) {
   if (primary && primary.usedPercent != null) {
     pages.push({
       label: 'Codex 5h',
-      main: fmtPct(primary.usedPercent),
+      main: fmtRemainingPct(primary.usedPercent),
       sub: fmtReset(primary.resetsAt, primary.windowMinutes),
       kind: 'usage',
     })
@@ -105,18 +117,18 @@ export function buildCodexPages(res) {
   if (secondary && secondary.usedPercent != null) {
     pages.push({
       label: 'Codex 周',
-      main: fmtPct(secondary.usedPercent),
+      main: fmtRemainingPct(secondary.usedPercent),
       sub: fmtReset(secondary.resetsAt, secondary.windowMinutes),
       kind: 'usage',
     })
   }
   const credits = res && res.credits && res.credits.balance
   const tokens = res && res.tokens && res.tokens.total
-  if (credits || tokens) {
+  if (tokens || hasPositiveCredits(credits)) {
     pages.push({
-      label: 'Credits',
+      label: tokens ? 'Tokens' : 'Credits',
       main: tokens ? fmtTokensCodex(tokens) : '$' + credits,
-      sub: credits && tokens ? 'credits $' + credits : undefined,
+      sub: hasPositiveCredits(credits) && tokens ? 'credits $' + credits : undefined,
       kind: 'usage',
     })
   }
