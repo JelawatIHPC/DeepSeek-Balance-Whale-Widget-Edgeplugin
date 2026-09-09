@@ -282,7 +282,7 @@ async function runOpencode() {
 async function runCodex() {
   try {
     const res = await queryNative('codex')
-    if (!res || !res.cliFound) return { ok: false, error: '未找到 Codex CLI' }
+    if (!res || (!res.cliFound && res.source !== 'files')) return { ok: false, error: '未找到 Codex CLI' }
     const pages = buildCodexPages(res)
     if (!pages.length) return { ok: false, error: 'Codex 无可用数据' }
     return { ok: true, provider: 'codex', pages }

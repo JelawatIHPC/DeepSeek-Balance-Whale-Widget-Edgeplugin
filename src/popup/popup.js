@@ -36,19 +36,21 @@
 
   function render() {
     var bal = state.bal
-    var opencodeMode = !!(bal && bal.requestedMode === 'opencode')
+    var usageMode = bal && bal.requestedMode
+    var localUsageMode = usageMode === 'opencode' || usageMode === 'codex'
     var balanceEl = $('balance')
-    if (opencodeMode) {
+    if (localUsageMode) {
+      var localProvider = providerLabel(usageMode)
       balanceEl.textContent = '—'
       balanceEl.classList.add('disabled')
       var pages = bal.pages || []
       $('usage').textContent = pages[0] ? pages[0].main : '--'
-      $('source').textContent = 'Opencode'
+      $('source').textContent = localProvider
       if (bal.usageError) {
         $('status').textContent = '不可用：' + bal.usageError.slice(0, 60)
         $('status').classList.add('err')
       } else {
-        $('status').textContent = 'Opencode 用量模式'
+        $('status').textContent = localProvider + ' 用量模式'
         $('status').classList.remove('err')
       }
       return
