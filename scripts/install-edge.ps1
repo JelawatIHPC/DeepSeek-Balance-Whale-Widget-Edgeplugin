@@ -67,10 +67,10 @@ function Invoke-Guide {
   if (-not $edge) {
     Write-Host '[WARN] msedge.exe not found; open edge://extensions manually.' -ForegroundColor Yellow
   }
-  Write-Host '[1/2] Registering Opencode native host (no admin needed, reversible)...'
+  Write-Host '[1/2] Registering Codex/Opencode native host (no admin needed, reversible)...'
   $nativeOk = Invoke-Native
   if (-not $nativeOk) {
-    Write-Host '[WARN] skipped - the whale works fine without it (only Opencode source unavailable).' -ForegroundColor Yellow
+    Write-Host '[WARN] skipped - the whale works fine without it (Codex/Opencode sources unavailable).' -ForegroundColor Yellow
   } else {
     Write-Host '     If Edge is already running, restart it once to activate this.'
   }
@@ -100,8 +100,8 @@ function Invoke-Guide {
     Write-Host ''
   }
   if ($nativeOk) {
-    Write-Host 'Opencode usage source: registered. Fully restart Edge once,'
-    Write-Host 'then pick "Opencode" in the whale menu (用量).'
+    Write-Host 'Codex/Opencode usage source: registered. Fully restart Edge once,'
+    Write-Host 'then pick "Codex" or "Opencode" in the whale menu (用量).'
     Write-Host ''
   }
   Write-Host '====================================================================' -ForegroundColor Cyan
@@ -121,28 +121,38 @@ function Invoke-Doctor {
   else { Write-Host '[FAIL] Edge not found' -ForegroundColor Red; $ok = $false }
   $winsqlite = Test-Path "$env:SystemRoot\System32\winsqlite3.dll"
   if ($winsqlite) { Write-Host '[OK] winsqlite3.dll present (Opencode source prerequisite)' -ForegroundColor Green }
-  else { Write-Host '[WARN] winsqlite3.dll missing (needed by P5 native host)' -ForegroundColor Yellow }
+  else { Write-Host '[WARN] winsqlite3.dll missing (Opencode source unavailable; Codex source can still work)' -ForegroundColor Yellow }
   $psver = $PSVersionTable.PSVersion.ToString()
   Write-Host "[OK] PowerShell $psver"
   $hostName = 'com.dsh_whale.opencode'
-  $reg = "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\$hostName"
   $nativeOk = $false
-  try {
-    $v = (Get-ItemProperty -LiteralPath $reg -ErrorAction Stop).'(default)'
-    if ($v -and (Test-Path -LiteralPath $v)) {
-      $hostJson = [IO.File]::ReadAllText($v) | ConvertFrom-Json
-      $m = [IO.File]::ReadAllText($ManifestPath) | ConvertFrom-Json
-      if ($m.key) {
-        $expect = 'chrome-extension://' + (Get-ExtensionIdFromKey $m.key) + '/'
-        if ($hostJson.allowed_origins -contains $expect) { $nativeOk = $true }
-        else { Write-Host '[WARN] host allowed_origins mismatch (re-run -Mode native)' -ForegroundColor Yellow }
-      } else {
-        $nativeOk = $true
+  $m = $null
+  try { $m = [IO.File]::ReadAllText($ManifestPath) | ConvertFrom-Json } catch {}
+  foreach ($target in Get-NativeHostRegistryTargets $hostName) {
+    try {
+      $v = (Get-ItemProperty -LiteralPath $target.psPath -ErrorAction Stop).'(default)'
+      if ($v -and (Test-Path -LiteralPath $v)) {
+        $hostJson = [IO.File]::ReadAllText($v) | ConvertFrom-Json
+        $usesCmdShim = $hostJson.path -and $hostJson.path.ToString().EndsWith('.cmd', [StringComparison]::OrdinalIgnoreCase)
+        if ($usesCmdShim) {
+          Write-Host "[WARN] $($target.name) host manifest still points to run.cmd (re-run -Mode native)" -ForegroundColor Yellow
+        }
+        $targetOk = $false
+        if ($m -and $m.key) {
+          $expect = 'chrome-extension://' + (Get-ExtensionIdFromKey $m.key) + '/'
+          if (($hostJson.allowed_origins -contains $expect) -and -not $usesCmdShim) { $targetOk = $true }
+          elseif (-not ($hostJson.allowed_origins -contains $expect)) { Write-Host "[WARN] $($target.name) host allowed_origins mismatch (re-run -Mode native)" -ForegroundColor Yellow }
+        } else {
+          $targetOk = -not $usesCmdShim
+        }
+        if ($targetOk) {
+          Write-Host "[OK] native host registered for $($target.name)" -ForegroundColor Green
+          $nativeOk = $true
+        }
       }
-    }
-  } catch {}
-  if ($nativeOk) { Write-Host '[OK] native host registered' -ForegroundColor Green }
-  else { Write-Host '[WARN] native host not registered (run: install-edge.ps1 -Mode native)' -ForegroundColor Yellow }
+    } catch {}
+  }
+  if (-not $nativeOk) { Write-Host '[WARN] native host not registered (run: install-edge.ps1 -Mode native)' -ForegroundColor Yellow }
   if ($ok) { Write-Host 'Doctor summary: PASS' -ForegroundColor Green } else { Write-Host 'Doctor summary: FAIL' -ForegroundColor Red; exit 1 }
 }
 
@@ -161,33 +171,81 @@ function Get-ExtensionIdFromKey($keyB64) {
 function Invoke-Native {
   $hostName = 'com.dsh_whale.opencode'
   $dir = Join-Path $env:LOCALAPPDATA 'dsh-whale\native-hosts'
-  $cmdPath = Join-Path $Root 'native-host\run.cmd'
+  $scriptPath = Join-Path $Root 'native-host\opencode-host.ps1'
+  $launcherSrc = Join-Path $Root 'native-host\NativeHostLauncher.cs'
+  $launcherExe = Join-Path $dir 'dsh-whale-native-host.exe'
   $tmplPath = Join-Path $Root 'native-host\com.dsh_whale.opencode.json.tmpl'
   $manifestPath = Join-Path $Root 'manifest.json'
-  if (-not (Test-Path -LiteralPath $cmdPath)) { Write-Host '[FAIL] native-host\run.cmd not found' -ForegroundColor Red; return $false }
+  if (-not (Test-Path -LiteralPath $scriptPath)) { Write-Host '[FAIL] native-host\opencode-host.ps1 not found' -ForegroundColor Red; return $false }
+  if (-not (Test-Path -LiteralPath $launcherSrc)) { Write-Host '[FAIL] native-host\NativeHostLauncher.cs not found' -ForegroundColor Red; return $false }
   if (-not (Test-Path -LiteralPath $tmplPath)) { Write-Host '[FAIL] host manifest template not found' -ForegroundColor Red; return $false }
-  if (-not (Test-Path -LiteralPath "$env:SystemRoot\System32\winsqlite3.dll")) { Write-Host '[FAIL] winsqlite3.dll missing' -ForegroundColor Red; return $false }
+  if (-not (Test-Path -LiteralPath "$env:SystemRoot\System32\winsqlite3.dll")) {
+    Write-Host '[WARN] winsqlite3.dll missing: Opencode mode may be unavailable, Codex mode can still use this host.' -ForegroundColor Yellow
+  }
   $m = [IO.File]::ReadAllText($manifestPath) | ConvertFrom-Json
   if (-not $m.key) { Write-Host '[FAIL] manifest.json missing "key" field' -ForegroundColor Red; return $false }
   $extId = Get-ExtensionIdFromKey $m.key
   New-Item -ItemType Directory -Force -Path $dir | Out-Null
+  Copy-Item -LiteralPath $scriptPath -Destination (Join-Path $dir 'opencode-host.ps1') -Force
+  $csc = Get-CscExe
+  if (-not $csc) {
+    Write-Host '[FAIL] C# compiler not found; cannot build native host launcher.' -ForegroundColor Red
+    return $false
+  }
+  & $csc /nologo /target:exe /out:$launcherExe $launcherSrc
+  if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $launcherExe)) {
+    Write-Host '[FAIL] failed to build native host launcher.' -ForegroundColor Red
+    return $false
+  }
   $tmpl = [IO.File]::ReadAllText($tmplPath)
-  $json = $tmpl.Replace('__HOST_CMD__', $cmdPath.Replace('\', '\\')).Replace('__EXTENSION_ID__', $extId)
+  $json = $tmpl.Replace('__HOST_CMD__', $launcherExe.Replace('\', '\\')).Replace('__EXTENSION_ID__', $extId)
   $jsonPath = Join-Path $dir "$hostName.json"
   [IO.File]::WriteAllText($jsonPath, $json, (New-Object System.Text.UTF8Encoding($false)))
-  New-Item -Path "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\$hostName" -Force | Out-Null
-  Set-ItemProperty -Path "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\$hostName" -Name '(default)' -Value $jsonPath
+  foreach ($target in Get-NativeHostRegistryTargets $hostName) {
+    & reg.exe add $target.regPath /ve /t REG_SZ /d $jsonPath /f | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+      Write-Host "[FAIL] failed to write registry for $($target.name): $($target.regPath)" -ForegroundColor Red
+      return $false
+    }
+  }
   Write-Host "[OK] extension ID derived from manifest key: $extId" -ForegroundColor Green
   Write-Host "[OK] native host manifest: $jsonPath" -ForegroundColor Green
-  Write-Host "[OK] registry: HKCU\Software\Microsoft\Edge\NativeMessagingHosts\$hostName"
+  Write-Host "[OK] native host launcher: $launcherExe" -ForegroundColor Green
+  Write-Host '[OK] registry targets: Edge, Chrome, Chromium, Brave'
   return $true
+}
+
+function Get-NativeHostRegistryTargets($hostName) {
+  return @(
+    @{ name = 'Edge'; psPath = "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\$hostName"; regPath = "HKCU\Software\Microsoft\Edge\NativeMessagingHosts\$hostName" },
+    @{ name = 'Chrome'; psPath = "HKCU:\Software\Google\Chrome\NativeMessagingHosts\$hostName"; regPath = "HKCU\Software\Google\Chrome\NativeMessagingHosts\$hostName" },
+    @{ name = 'Chromium'; psPath = "HKCU:\Software\Chromium\NativeMessagingHosts\$hostName"; regPath = "HKCU\Software\Chromium\NativeMessagingHosts\$hostName" },
+    @{ name = 'Brave'; psPath = "HKCU:\Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\$hostName"; regPath = "HKCU\Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\$hostName" }
+  )
+}
+
+function Get-CscExe {
+  $candidates = @(
+    "$env:SystemRoot\Microsoft.NET\Framework64\v4.0.30319\csc.exe",
+    "$env:SystemRoot\Microsoft.NET\Framework\v4.0.30319\csc.exe"
+  )
+  foreach ($c in $candidates) {
+    if ($c -and (Test-Path -LiteralPath $c)) { return $c }
+  }
+  $cmd = Get-Command csc.exe -ErrorAction SilentlyContinue
+  if ($cmd -and $cmd.Source) { return $cmd.Source }
+  return $null
 }
 
 function Invoke-NativeRemove {
   $hostName = 'com.dsh_whale.opencode'
-  Remove-Item -Path "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\$hostName" -Force -ErrorAction SilentlyContinue
+  foreach ($target in Get-NativeHostRegistryTargets $hostName) {
+    & reg.exe delete $target.regPath /f 2>$null | Out-Null
+  }
   $dir = Join-Path $env:LOCALAPPDATA 'dsh-whale\native-hosts'
   Remove-Item -Path (Join-Path $dir "$hostName.json") -Force -ErrorAction SilentlyContinue
+  Remove-Item -Path (Join-Path $dir 'dsh-whale-native-host.exe') -Force -ErrorAction SilentlyContinue
+  Remove-Item -Path (Join-Path $dir 'opencode-host.ps1') -Force -ErrorAction SilentlyContinue
   Write-Host '[OK] native host unregistered' -ForegroundColor Green
 }
 

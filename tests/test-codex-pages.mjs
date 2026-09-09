@@ -17,11 +17,11 @@ import { buildCodexPages, buildPageSet } from '../src/shared/pages.js'
   const pages = buildCodexPages(res)
   assert.equal(pages.length, 3, 'three pages when all data present')
   assert.equal(pages[0].label, 'Codex 5h')
-  assert.equal(pages[0].main, '32.5%')
+  assert.equal(pages[0].main, '67.5%')
   assert.ok(pages[0].sub.includes('重置'), 'primary reset sub')
   assert.equal(pages[1].label, 'Codex 周')
-  assert.equal(pages[1].main, '12.1%')
-  assert.equal(pages[2].label, 'Credits')
+  assert.equal(pages[1].main, '87.9%')
+  assert.equal(pages[2].label, 'Tokens')
   assert.equal(pages[2].main, '250')
   assert.equal(pages[2].sub, 'credits $10.00')
 }
@@ -34,13 +34,24 @@ import { buildCodexPages, buildPageSet } from '../src/shared/pages.js'
 {
   const pages = buildCodexPages({
     cliFound: true,
-    limits: { primary: { usedPercent: 50, resetsAt: null, windowMinutes: 300 } },
+    limits: { primary: { usedPercent: 50, resetsAt: Math.floor((Date.now() + 30 * 60 * 1000) / 1000), windowMinutes: 300 } },
     credits: { balance: '0.00' },
   })
-  assert.equal(pages.length, 2, 'primary + credits only')
+  assert.equal(pages.length, 1, 'zero credits hidden')
   assert.equal(pages[0].main, '50%')
-  assert.equal(pages[0].sub, '', 'no resetsAt -> empty sub')
-  assert.equal(pages[1].main, '$0.00', 'credits-only page uses $ balance')
+  assert.match(pages[0].sub, /^\d{2}:\d{2} 重置$/, 'near reset -> clock sub')
+}
+
+{
+  const pages = buildCodexPages({
+    cliFound: true,
+    limits: {
+      primary: { usedPercent: -10, resetsAt: null, windowMinutes: 300 },
+      secondary: { usedPercent: 120, resetsAt: null, windowMinutes: 10080 },
+    },
+  })
+  assert.equal(pages[0].main, '100%', 'remaining percent clamps high')
+  assert.equal(pages[1].main, '0%', 'remaining percent clamps low')
 }
 
 {

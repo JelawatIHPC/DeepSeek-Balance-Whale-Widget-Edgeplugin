@@ -31,21 +31,21 @@ child.stdout.on('data', (chunk) => {
     clearTimeout(timeout)
     child.kill()
     console.log('host reply:', JSON.stringify(msg, null, 2))
-    if (msg.dbFound !== true) {
-      console.error('FAIL: dbFound !== true')
+    if (typeof msg.cliFound !== 'boolean') {
+      console.error('FAIL: missing cliFound boolean')
       process.exit(1)
     }
-    if (typeof msg.today?.tokens !== 'number' || typeof msg.month?.tokens !== 'number') {
-      console.error('FAIL: missing tokens fields')
+    if (typeof msg.source !== 'string') {
+      console.error('FAIL: missing source string')
       process.exit(1)
     }
-    if (typeof msg.today?.top?.name !== 'string' || typeof msg.today?.topCost?.name !== 'string' || typeof msg.month?.top?.name !== 'string') {
-      console.error('FAIL: missing top-model fields')
+    if (!('limits' in msg) || !('tokens' in msg) || !('activeModel' in msg)) {
+      console.error('FAIL: missing Codex snapshot fields')
       process.exit(1)
     }
-    console.log('native host self-test: PASS')
+    console.log('native host codex self-test: PASS')
     process.exit(0)
   }
 })
 
-child.stdin.write(frame({ cmd: 'usage' }))
+child.stdin.write(frame({ cmd: 'codex' }))
